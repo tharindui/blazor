@@ -1,0 +1,172 @@
+@page "/products"
+@inject IProductService ProductService
+
+<PageTitle>Products CRUD</PageTitle>
+
+<h1>Products CRUD</h1>
+<p class="text-muted">Create, read, update, and delete products using one Blazor component.</p>
+
+<div class="row g-4 mt-1">
+    <div class="col-12 col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5">@(isEditing ? "Edit Product" : "Add Product")</h2>
+
+                @* EditForm + DataAnnotationsValidator gives us model validation with minimal code. *@
+                <EditForm Model="formModel" OnValidSubmit="HandleSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <InputText class="form-control" @bind-Value="formModel.Name" />
+                        <ValidationMessage For="() => formModel.Name" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Price</label>
+                        <InputNumber class="form-control" @bind-Value="formModel.Price" />
+                        <ValidationMessage For="() => formModel.Price" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <InputTextArea class="form-control" @bind-Value="formModel.Description" />
+                        <ValidationMessage For="() => formModel.Description" />
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            @(isEditing ? "Update" : "Create")
+                        </button>
+
+                        @if (isEditing)
+                        {
+                            <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">
+                                Cancel
+                            </button>
+                        }
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5">Current Products</h2>
+
+                @if (products.Count == 0)
+                {
+                    <p>No products yet. Add one from the form.</p>
+                }
+                else
+                {
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Id</th>
+                                <th>Name</th>
+                                <th>Price</th>
+                                <th>Description</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var product in products)
+                            {
+                                <tr>
+                                    <td>@product.Id</td>
+                                    <td>@product.Name</td>
+                                    <td>@product.Price.ToString("C")</td>
+                                    <td>@product.Description</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => BeginEdit(product.Id)">
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(product.Id)">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // This local list drives rendering in the table.
+    private List<Product> products = [];
+
+    // Form model is reused for create/update.
+    private Product formModel = new();
+
+    // Tracks if the form is in edit mode.
+    private bool isEditing;
+
+    protected override void OnInitialized()
+    {
+        LoadProducts();
+    }
+
+    private void LoadProducts()
+    {
+        products = ProductService.GetAll().ToList();
+    }
+
+    private void HandleSubmit()
+    {
+        if (isEditing)
+        {
+            ProductService.Update(formModel);
+        }
+        else
+        {
+            ProductService.Create(formModel);
+        }
+
+        LoadProducts();
+        ResetForm();
+    }
+
+    private void BeginEdit(int id)
+    {
+        var existing = ProductService.GetById(id);
+        if (existing is null)
+        {
+            return;
+        }
+
+        formModel = existing;
+        isEditing = true;
+    }
+
+    private void Delete(int id)
+    {
+        ProductService.Delete(id);
+
+        // If the deleted item was being edited, return the form to create mode.
+        if (isEditing && formModel.Id == id)
+        {
+            ResetForm();
+        }
+
+        LoadProducts();
+    }
+
+    private void CancelEdit()
+    {
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        formModel = new Product();
+        isEditing = false;
+    }
+}
